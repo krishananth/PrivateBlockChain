@@ -69,9 +69,9 @@ class Blockchain {
                 block.height = self.chain.length;
                 block.time = new Date().getTime().toString().slice(0,-3);
                 if(this.chain.length > 0) {
-                    block.previousBlockHash = this.chain[this.chain.length - 1].hash;
+                    block.previousBlockHash = self.chain[block.height - 1].hash;
                 }
-                block.hash = SHA256(JSON.stringify(block)).toString();
+                block.hash = await SHA256(JSON.stringify(block)).toString();
                 this.chain.push(block); // Add block to the blockchain
                 this.height = this.chain.length - 1; // Set blockchain's height
                 resolve(block);
@@ -121,12 +121,15 @@ class Blockchain {
             let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
             if((currentTime - requestTime) > 300) {
                 reject(`Stale/Expired Message Request`);
+                return;
             }
             let msgVerified = bitcoinMessage.verify(message, address, signature);
             if(msgVerified) {
-                let newBlock = self._addBlock(new BlockClass.Block(star));
+                let newBlock = new BlockClass.Block(star);
                 newBlock.owner = address;
-                resolve(newBlock);
+                let blockAdded = await self._addBlock(newBlock);
+                self.validateChain();  //validate chain after adding new Block
+                resolve(blockAdded);
             }
             else {
                 reject(`Unable to add new Block for a Star!! - bitcoinMessage is not verified`);
@@ -143,7 +146,6 @@ class Blockchain {
     getBlockByHash(hash) {
         let self = this;
         return new Promise((resolve, reject) => {
-            console.log(`Total number of Blocks in Chain is: ${self.chain.length}`);
             let matchingBlock = self.chain.filter(aBlock => aBlock.hash === hash)[0];
             matchingBlock? resolve(matchingBlock): reject(null);
         });
@@ -172,10 +174,10 @@ class Blockchain {
         let self = this;
         let stars = [];
         return new Promise((resolve, reject) => {
-            let matching_stars = self.chain.filter(aBlock => aBlock.owner = address); // returns array
+            let matching_stars = self.chain.filter(aBlock => ((aBlock.owner = address) && (aBlock.height != 0))); // returns array
             if(matching_stars) {
-                stars = matching_stars.map(aBlock => JSON.parse(hex2ascii(aBlock.body)));
-                stars ? resolve(stars) : reject(`Failed parsing Stars data`);
+                let results = matching_stars.map(aBlock => JSON.parse(hex2ascii(aBlock.body)));
+                resolve(results);
             }
             else {
                 reject(`No matching Stars found for given address ${address}`);
@@ -193,7 +195,7 @@ class Blockchain {
         let self = this;
         let errorLog = [];
         return new Promise(async (resolve, reject) => {
-            for(aBlock in self.chain) {
+            for(let aBlock of self.chain) {
                 if(aBlock.height > 0) {
                     let isValid = await aBlock.validate();
                     if(isValid) {
@@ -205,11 +207,12 @@ class Blockchain {
                         }
                     }
                     else {
-                        errorLog.push(new Error(`Block Validation failed in Block.validate() method`));
+                        console.log(`Block Validation failed in Block.validate() method ${aBlock.height}`);
+                        errorLog.push(new Error(`Block Validation failed in Block.validate() method at ${aBlock.height}`));
                     }
                 }
             }
-            (errorLog.length > 0) ? resolve(`No errors deducted, BlockChain is Valid!!`): reject(errorLog);
+            (errorLog.length == 0) ? resolve("{'message':'No errors deducted, BlockChain is Valid!!'}"): reject(errorLog);
         });
     }
 }

@@ -38,14 +38,12 @@ class Block {
      */
     validate() {
         let self = this;
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             // Save in auxiliary variable the current block hash
             // Comparing if the hashes changed
-            const existingBlockHash = self.hash; // remember existing Hash
-            let clonedBlock = JSON.parse(JSON.stringify(self)); // Clone current block
-            clonedBlock['hash'] = null; // Reset current block Hash to empty
-            let currentBlockHash = Buffer(JSON.stringify(clonedBlock)).toString('hex');             // Recalculate the hash of the Block
-            resolve(existingBlockHash === currentBlockHash); // Returning the Block is valid
+            const hash = self.hash;
+            self.hash = await SHA256(JSON.stringify({ ...self, hash: null })).toString();
+            resolve(hash === self.hash);
         });
     }
 
@@ -59,22 +57,14 @@ class Block {
      *     or Reject with an error.
      */
     getBData() {
-
         let self = this;
-
         return new Promise((resolve, reject) => {
             try {
                 // Getting the encoded data saved in the Block
                 // Decoding the data to retrieve the JSON representation of the object
                 // Parse the data to an object to be retrieve.
                 let decoded_obj = JSON.parse(hex2ascii(self.body));
-                if (decoded_obj.height == 0) {
-                    // Resolve with the data if the object isn't the Genesis block
-                    reject("Genesis Block");
-                }
-                else {
-                    resolve(decoded_obj);
-                }
+                self.height == 0 ? reject(new Error('Genesis Block!!')) : resolve(decoded_obj);
             }
             catch(error) {
                 reject(`Error occurred while parsing Block Body ${error}`);
