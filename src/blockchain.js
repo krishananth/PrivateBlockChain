@@ -173,11 +173,15 @@ class Blockchain {
     getStarsByWalletAddress (address) {
         let self = this;
         let stars = [];
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             let matching_stars = self.chain.filter(aBlock => ((aBlock.owner = address) && (aBlock.height != 0))); // returns array
             if(matching_stars) {
-                let results = matching_stars.map(aBlock => JSON.parse(hex2ascii(aBlock.body)));
-                resolve(results);
+                let starsInWallet = [];
+                await Promise.all(matching_stars.map(async (aBlock) => {
+                    let contents = await aBlock.getBData();
+                    starsInWallet.push(contents);
+                    resolve(starsInWallet);
+                }));
             }
             else {
                 reject(`No matching Stars found for given address ${address}`);

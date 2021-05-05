@@ -58,7 +58,7 @@ class Block {
      */
     getBData() {
         let self = this;
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             try {
                 // Getting the encoded data saved in the Block
                 // Decoding the data to retrieve the JSON representation of the object
